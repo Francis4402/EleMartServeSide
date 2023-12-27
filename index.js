@@ -36,6 +36,7 @@ const logger = async (req, res, next) => {
     next();
 }
 
+const productCollection = client.db('elemart').collection('product');
 const userCollection = client.db('elemart').collection('users');
 
 app.get('/', (req, res) => {
@@ -63,9 +64,30 @@ const verifyToken = async (req, res, next) => {
     })
 }
 
+app.get('/product', async (req, res) => {
+    const result = await productCollection.find().toArray();
+    res.send(result);
+})
 
-app.get('/users', verifyToken, async (req, res) => {
-    const result = await userCollection.find().toArray();
+app.get('/posts/:id', async (req, res) => {
+    const id = req.params.id;
+    const getPost = {_id: new ObjectId(id)}
+    const result = await productCollection.find(getPost);
+    res.send(result);
+})
+
+app.post('/addproduct', async (req, res) => {
+    const post = req.body;
+    const result = await productCollection.insertOne(post);
+    res.send(result);
+})
+
+
+
+app.get('/users', async (req, res) => {
+    const email = req.query.email;
+    const query = {email: email}
+    const result = await userCollection.find(query).toArray();
     res.send(result);
 })
 
