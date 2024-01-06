@@ -38,6 +38,7 @@ const logger = async (req, res, next) => {
 
 const productCollection = client.db('elemart').collection('product');
 const userCollection = client.db('elemart').collection('users');
+const cartCollections = client.db('elemart').collection('cart');
 
 app.get('/', (req, res) => {
     res.send('server started')
@@ -69,6 +70,13 @@ app.get('/product', async (req, res) => {
     res.send(result);
 })
 
+app.get('/product/:name/:id', async (req, res) => {
+    const id = req.params.id;
+    const details = {_id: new ObjectId(id)}
+    const result = await productCollection.findOne(details);
+    res.send(result);
+})
+
 app.get('/posts/:id', async (req, res) => {
     const id = req.params.id;
     const getPost = {_id: new ObjectId(id)}
@@ -81,7 +89,6 @@ app.post('/addproduct', async (req, res) => {
     const result = await productCollection.insertOne(post);
     res.send(result);
 })
-
 
 
 app.get('/users', async (req, res) => {
@@ -99,6 +106,19 @@ app.post('/users', async (req, res) => {
         return res.send({message: 'user already exists', insertedId: null})
     }
     const result = await userCollection.insertOne(users);
+    res.send(result);
+})
+
+app.get('/cart', async (req, res) => {
+    const email = req.query.email;
+    const query = {email: email};
+    const result = await cartCollections.find(query).toArray();
+    res.send(result);
+})
+
+app.post('/cart', async (req, res) => {
+    const cart = req.body;
+    const result = await cartCollections.insertOne(cart);
     res.send(result);
 })
 
