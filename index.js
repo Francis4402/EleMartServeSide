@@ -8,7 +8,7 @@ require('dotenv').config();
 
 const { MongoClient, ServerApiVersion, ObjectId} = require('mongodb');
 
-const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.USER_Pass}@cluster0.cefd8nv.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.USER_Pass}@cluster0.noqamg3.mongodb.net/?retryWrites=true&w=majority`;
 
 app.use(cors());
 app.use(express.json());
@@ -66,6 +66,17 @@ const verifyToken = async (req, res, next) => {
     })
 }
 
+const verifyAdmin = async (req, res, next) => {
+    const email = req.decoded.email;
+    const query = {email: email};
+    const user = await userCollection.findOne(query);
+    const isAdmin = user?.role === 'admin';
+    if(!isAdmin){
+        return res.status(403).send({message: 'forbidden access'});
+    }
+    next();
+}
+
 app.get('/product', async (req, res) => {
     const result = await productCollection.find().toArray();
     res.send(result);
@@ -108,6 +119,7 @@ app.put('/addproduct/:id', async (req, res) => {
             name: updateProducts.name,
             image: updateProducts.image,
             price: updateProducts.price,
+            priceDiscount: updateProducts.priceDiscount,
             modelname: updateProducts.modelname,
             size: updateProducts.size,
             displaytype: updateProducts.displaytype,
@@ -197,6 +209,7 @@ app.put('/addproduct/:id', async (req, res) => {
             description7: updateProducts.description7,
             categories: updateProducts.categories,
             brands: updateProducts.brands,
+            featured: updateProducts.featured,
         }
     }
     const result = await productCollection.updateOne(filter, products, options);
@@ -210,12 +223,31 @@ app.delete('/addproduct/:id', async (req, res) => {
     res.send(result);
 })
 
+app.get('/users', verifyToken, verifyAdmin, async(req, res) => {
+    const result = await userCollection.find().toArray();
+    res.send(result);
+})
 
-app.get('/users', async (req, res) => {
+
+app.get('/usersid', async (req, res) => {
     const email = req.query.email;
     const query = {email: email}
     const result = await userCollection.find(query).toArray();
     res.send(result);
+})
+
+app.get('/users/admin/:email', verifyToken,  async (req, res) => {
+    const email = req.params.email;
+    if(email !== req.decoded.email){
+        return res.status(403).send({message: 'unathorized access'})
+    }
+    const query = {email: email};
+    const user = await userCollection.findOne(query);
+    let admin = false;
+    if(user){
+        admin = user?.role === 'admin';
+    }
+    res.send({admin});
 })
 
 app.post('/users', async (req, res) => {
@@ -226,6 +258,25 @@ app.post('/users', async (req, res) => {
         return res.send({message: 'user already exists', insertedId: null})
     }
     const result = await userCollection.insertOne(users);
+    res.send(result);
+})
+
+app.delete('/users/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)};
+    const result = await userCollection.deleteOne(query);
+    res.send(result);
+})
+
+app.patch('/users/admin/:id', verifyToken, verifyAdmin, async(req, res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)};
+    const updateDoc = {
+        $set: {
+            role: 'admin'
+        }
+    }
+    const result = await userCollection.updateOne(query, updateDoc);
     res.send(result);
 })
 
@@ -242,12 +293,7 @@ app.post('/cart', async (req, res) => {
     res.send(result);
 })
 
-app.delete('/users/:id', verifyToken, async (req, res) => {
-    const id = req.params.id;
-    const query = {_id: new ObjectId(id)};
-    const result = await userCollection.deleteOne(query);
-    res.send(result);
-})
+
 
 app.listen(port, () => {
     console.log(`server started, ${port}`)
