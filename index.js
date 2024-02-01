@@ -1,10 +1,12 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const port = process.env.PORT || 3000;
 const jwt = require('jsonwebtoken');
 const {decode} = require('jsonwebtoken')
 require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const port = process.env.PORT || 3000;
+
 
 const { MongoClient, ServerApiVersion, ObjectId} = require('mongodb');
 
@@ -13,7 +15,7 @@ const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.USER_Pass}@clust
 app.use(cors());
 app.use(express.json());
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -30,7 +32,7 @@ const dbConnect = async () => {
         console.log(error.name, error.message)
     }
 }
-dbConnect()
+dbConnect().then(() => {})
 
 const logger = async (req, res, next) => {
     next();
@@ -39,7 +41,7 @@ const logger = async (req, res, next) => {
 const productCollection = client.db('elemart').collection('product');
 const userCollection = client.db('elemart').collection('users');
 const cartCollections = client.db('elemart').collection('cart');
-const featuredCollections = client.db('elemart').collection('featuredCollection');
+const paymentCollection = client.db('elemart').collection('Payments');
 
 app.get('/', (req, res) => {
     res.send('server started')
@@ -52,7 +54,7 @@ app.post('/jwt', logger, async (req, res) => {
 })
 
 const verifyToken = async (req, res, next) => {
-    // console.log('inside verify token', req.headers.authorization)
+
     if(!req.headers.authorization){
         return res.status(401).send({message: 'forbidden access'});
     }
@@ -293,7 +295,56 @@ app.post('/cart', async (req, res) => {
     res.send(result);
 })
 
+app.delete('/cart/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)};
+    const result = await cartCollections.deleteOne(query);
+    res.send(result);
+})
 
+app.post('/create-payment-intent', async (req, res) => {
+    const { price } = req.body;
+    const amount = parseInt(price * 100);
+    console.log(amount, 'amount inside the intent')
+
+    const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+    });
+    res.send({
+        clientSecret: paymentIntent.client_secret,
+    })
+})
+
+app.get('/payments/:email', verifyToken, async (req,res) => {
+    const query = {email: req.params.email}
+    if(req.params.email !== req.decoded.email){
+        return res.status(403).send({message: 'forbidden access'})
+    }
+    const result = await paymentCollection.find().toArray();
+    res.send(result);
+})
+
+app.post('/payments', verifyToken, async (req, res) => {
+    const payment = req.body;
+    const paymentResult = await paymentCollection.insertOne(payment);
+    console.log('payment info', payment);
+    const query = {_id: {
+            $in: payment.cardIds.map(id => new ObjectId(id))
+        }}
+    const deleteResult = await cartCollections.deleteMany(query);
+    res.send({paymentResult, deleteResult});
+})
+
+
+app.get('/order-stats', async (req, res) => {
+    const result = await paymentCollection.aggregate([
+
+    ]).toArray();
+
+    res.send(result);
+})
 
 app.listen(port, () => {
     console.log(`server started, ${port}`)
