@@ -127,6 +127,7 @@ app.put('/addproduct/:id', async (req, res) => {
             displaytype: updateProducts.displaytype,
             resolution: updateProducts.resolution,
             brightness: updateProducts.brightness,
+            refreshrate: updateProducts.refreshrate,
             displayfeatures: updateProducts.displayfeatures,
             chipset: updateProducts.chipset,
             cputype: updateProducts.cputype,
@@ -302,6 +303,7 @@ app.delete('/cart/:id', async (req, res) => {
     res.send(result);
 })
 
+
 app.post('/create-payment-intent', async (req, res) => {
     const { price } = req.body;
     const amount = parseInt(price * 100);
@@ -331,7 +333,7 @@ app.post('/payments', verifyToken, async (req, res) => {
     const paymentResult = await paymentCollection.insertOne(payment);
     console.log('payment info', payment);
     const query = {_id: {
-            $in: payment.cardIds.map(id => new ObjectId(id))
+            $in: payment.cardIds.map(id => new ObjectId(id)),
         }}
     const deleteResult = await cartCollections.deleteMany(query);
     res.send({paymentResult, deleteResult});
