@@ -121,7 +121,7 @@ app.put('/addproduct/:id', async (req, res) => {
             name: updateProducts.name,
             image: updateProducts.image,
             price: updateProducts.price,
-            priceDiscount: updateProducts.priceDiscount,
+            regularPrice: updateProducts.regularPrice,
             modelname: updateProducts.modelname,
             size: updateProducts.size,
             displaytype: updateProducts.displaytype,
